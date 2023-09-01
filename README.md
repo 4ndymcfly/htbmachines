@@ -25,3 +25,15 @@ Options:
 	-y,	Get YouTube URL of the machine resolution.
 	-h,	Show this help panel.
 ```
+
+# Screenshots
+![MainMenuhtb](images/mainmenu.png)
+
+---
+
+![Searchhtb](images/search.png)
+
+---
+
+![DWhtb](images/descriptionW.png)
+
