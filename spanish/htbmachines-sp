@@ -1,0 +1,326 @@
+#!/bin/bash
+
+# Por 4ndyMcFly 2023
+# Requiere Nerd Fonts para que se visualicen los símbolos correctamente.
+# Práctica ampliada del curso de Hacking de Hack4u (@S4vitar)
+
+clear
+
+#Colors
+greenColor="\e[0;32m\033[1m"
+endColor="\033[0m\e[0m"
+redColor="\e[0;31m\033[1m"
+blueColor="\e[0;34m\033[1m"
+yellowColor="\e[0;33m\033[1m"
+purpleColor="\e[0;35m\033[1m"
+
+function ctrl_c(){
+  echo -e "\n\n${redColor}[!]${endColor} Saliendo...\n"
+  tput cnorm && exit 1
+}
+
+# Ctrl+C
+trap ctrl_c INT
+
+# Variables globales
+main_url="https://htbmachines.github.io/bundle.js"
+
+function helpPanel() {
+  echo -e "\n${yellowColor}󰒋  HTB MACHINES  󰒋 ${endColor}"
+  echo -e "${purpleColor}Por: 4ndyMcFly${endColor}\n"
+  echo -e "\n\n${purpleColor}${endColor} Uso:\n ${blueColor}\t\thtbmachines${endColor}${purpleColor} [OPCION]${endColor}\n"
+  echo -e "${purpleColor}\t\t-Las opciones -o (SO) y -d (DIFICULTAD) se pueden concatenar. \n\t\t Ejemplo: ${endColor}${blueColor}htbmachines -o Linux -d Insane${endColor}\n"
+  echo -e "${purpleColor}\t\t-Las opciones -c (CERTIFICACIÓN) y -d (DIFICULTAD) se pueden concatenar. \n\t\t Ejemplo: ${endColor}${blueColor}htbmachines -c OSCP -d Fácil${endColor}"
+  echo -e "\n\n${purpleColor}${endColor} Opciones: \n"
+  echo -e "\t${purpleColor}-u${endColor},\tActualizar/Descargar BBDD de máquinas."
+  echo -e "\t${purpleColor}-m${endColor},\tBuscar por nombre de la máquina."
+  echo -e "\t${purpleColor}-i${endColor},\tBuscar por IP de la máquina."
+  echo -e "\t${purpleColor}-o${endColor},\tBuscar por el Sistema Operativo de la máquina (Windows, Linux)."
+  echo -e "\t${purpleColor}-s${endColor},\tBuscar máquinas con la Skill indicada."
+  echo -e "\t${purpleColor}-c${endColor},\tBuscar máquinas por la certificación indicada (OSCP, eJPT, etc)."
+  echo -e "\t${purpleColor}-d${endColor},\tListar máquinas disponibles según su dificultad (Fácil, Media, Difícil, Insane)."
+  echo -e "\t${purpleColor}-y${endColor},\tObtener URL de YouTube de la resolución de la máquina."
+  echo -e "\t${purpleColor}-h${endColor},\tMostrar este panel de ayuda.\n"
+  echo -e "\n\n${purpleColor}${endColor} Nota: \n\t\t${purpleColor}Se recomienda tener instaladas las Nerd Fonts para visualizar los símbolos correctamente."
+  echo -e "\t\tPuedes descargarlas desde https://www.nerdfonts.com/font-downloads.${endColor}\n\n"
+}
+
+function updateFiles(){
+  tput civis
+
+  if [ ! -f bundle.js ]; then
+    echo -e "\n${yellowColor}󰒋  HTB MACHINES  󰒋 ${endColor}"
+    echo -e "${purpleColor}Por: 4ndyMcFly${endColor}\n"
+    echo -e "\n${purpleColor}[󰁅]${endColor} Descargando archivos..."
+    curl -s $main_url > bundle.js
+    js-beautify bundle.js | sponge bundle.js
+    echo -e "\n${greenColor}[✔]${endColor} Datos descargados correctamente.\n"
+    tput cnorm
+  else
+    echo -e "\n${yellowColor}󰒋  HTB MACHINES  󰒋 ${endColor}"
+    echo -e "${purpleColor}Por: 4ndyMcFly${endColor}\n"
+    echo -e "\n${purpleColor}[!]${endColor} Comprobando actualizaciones, espere..."
+    curl -s $main_url > bundle_temp.js
+    js-beautify bundle_temp.js | sponge bundle_temp.js
+    md5_temp_value=$(md5sum bundle_temp.js | awk '{print $1}')
+    md5_original_value=$(md5sum bundle.js | awk '{print $1}')
+
+      if [ "$md5_original_value" == "$md5_temp_value" ]; then
+        echo -e "\n${purpleColor}[✘]${endColor} No hay actualizaciones nuevas, estás al día.\n"
+        sleep 1
+        rm bundle_temp.js
+      else
+        echo -e "\n${purpleColor}[󰁅]${endColor} Se han encontrado actualizaciones nuevas, descargando..."
+        sleep 2
+        rm bundle.js && mv bundle_temp.js bundle.js
+        echo -e "\n${greenColor}[✔]${endColor} Datos actualizados correctamente.\n"
+      fi
+    tput cnorm
+  fi
+}
+
+function downloadDB(){
+  tput civis
+  echo -e "\n${purpleColor}[󰁅]${endColor} Descargando archivo..."
+  curl -s $main_url > bundle.js
+  js-beautify bundle.js | sponge bundle.js
+  echo -e "\n${greenColor}[✔]${endColor} Datos descargados correctamente. Ya puedes realizar búsquedas.\n"
+  tput cnorm
+}
+
+function searchMachine(){
+    machineName="$1"
+
+    machineNameCheck="$(cat bundle.js | awk "BEGIN {IGNORECASE = 1} /name: \"$machineName\"/,/resuelta:/" | grep -vE "id:|sku:|resuelta:" | tr -d '"' | tr -d ',' | sed 's/^ *//')"
+
+    if [ "$machineNameCheck" ]; then
+        # Declarar variables
+        name="$(cat bundle.js | awk "BEGIN {IGNORECASE = 1} /name: \"$machineName\"/,/resuelta:/" | grep -vE "id:|sku:|resuelta:" | tr -d '"' | tr -d ',' | sed 's/^ *//' | grep "name:" | awk 'NF {print $NF}')"
+        ip="$(cat bundle.js | awk "BEGIN {IGNORECASE = 1} /name: \"$machineName\"/,/resuelta:/" | grep -vE "id:|sku:|resuelta:" | tr -d '"' | tr -d ',' | sed 's/^ *//' | grep "ip:" | awk 'NF {print $NF}')"
+        so="$(cat bundle.js | awk "BEGIN {IGNORECASE = 1} /name: \"$machineName\"/,/resuelta:/" | grep -vE "id:|sku:|resuelta:" | tr -d '"' | tr -d ',' | sed 's/^ *//' | grep "so:" | awk 'NF {print $NF}')"
+        dificultad="$(cat bundle.js | awk "BEGIN {IGNORECASE = 1} /name: \"$machineName\"/,/resuelta:/" | grep -vE "id:|sku:|resuelta:" | tr -d '"' | tr -d ',' | sed 's/^ *//' | grep "dificultad: " | awk 'NF {print $NF}')"
+        skills="$(cat bundle.js | awk "BEGIN {IGNORECASE = 1} /name: \"$machineName\"/,/resuelta:/" | grep -vE "id:|sku:|resuelta:" | tr -d '"' | tr -d ',' | sed 's/^ *//' | grep "skills:" | awk '{$1=""; print $0}')"
+        like="$(cat bundle.js | awk "BEGIN {IGNORECASE = 1} /name: \"$machineName\"/,/resuelta:/" | grep -vE "id:|sku:|resuelta:" | tr -d '"' | tr -d ',' | sed 's/^ *//' | grep "like:" | awk '{$1=""; print $0}')"
+        youtube="$(cat bundle.js | awk "BEGIN {IGNORECASE = 1} /name: \"$machineName\"/,/resuelta:/" | grep -vE "id:|sku:|resuelta:" | tr -d '"' | tr -d ',' | sed 's/^ *//' | grep "youtube:" | awk 'NF {print $NF}')"
+        activeDirectory="$(cat bundle.js  | grep -i "activeDirectory: " -B 9 | grep -i "name: \"$name\"" | awk 'NF{print $NF}' | tr -d '"' | tr -d ',')"
+        bufferOverflow="$(cat bundle.js  | grep -i "bufferOverFlow: " -B 9 | grep -i "name: \"$name\"" | awk 'NF{print $NF}' | tr -d '"' | tr -d ',')"
+
+        # Imprimir variables
+        echo -e "\n${yellowColor}󰒋  HTB MACHINES  󰒋 ${endColor}"
+        echo -e "${purpleColor}Por: 4ndyMcFly${endColor}\n"
+        echo -e "\n${purpleColor} ${endColor} Listando las propiedades de la máquina${purpleColor} $name ${endColor}:\n"
+        echo -e "${purpleColor} ${endColor} Nombre:\t\t${blueColor} $name ${endColor}"
+        echo -e "${purpleColor} ${endColor} IP:\t\t\t${blueColor} $ip ${endColor}"
+        echo -e "${purpleColor} ${endColor} Sistema Operativo:\t${yellowColor} $so ${endColor}"
+        echo -e "${purpleColor} ${endColor} Dificultad:\t\t${blueColor} $dificultad ${endColor}"
+        echo -e "${purpleColor} ${endColor} Certificación:\t${blueColor}$like ${endColor}"
+
+        if [ "$bufferOverflow" == "$name" ]; then
+                echo -e "${purpleColor} ${endColor} Buffer Overflow:\t${endColor}${greenColor} SI  ${endColor}"
+        #else
+            #echo -e "${purpleColor} ${endColor} Buffer Overflow:\t${endColor}${blueColor}  ${endColor}"
+        fi
+
+        if [ "$activeDirectory" == "$name" ]; then
+                echo -e "${purpleColor} ${endColor} Active Directory:\t${endColor}${greenColor} SI  ${endColor}"
+        else
+            echo -e "${purpleColor} ${endColor} Active Directory:\t${endColor}${blueColor} NO  ${endColor}"
+        fi
+
+        echo -e "${purpleColor} ${endColor} YouTube:\t\t ${redColor} ${endColor} $youtube"
+        echo -e "${purpleColor} ${endColor} Skills:\t\t${blueColor}$skills${endColor}"
+
+    else
+        echo -e "\n${yellowColor}󰒋  HTB MACHINES  󰒋 {endColor}"
+        echo -e "${purpleColor}Por: 4ndyMcFly${endColor}\n"
+        echo -e "\n${redColor}✘ ERROR ✘${endColor}  La máquina proporcionada ${blueColor}\"$1\"${endColor} no existe!\n"
+    fi
+}
+
+function searchIp(){
+  ipAddress="$1"
+  nombreMaquina=$(cat bundle.js | grep "ip: \"$1\"" -B 3 | grep "name: " | awk 'NF{print $NF}' | tr -d '"' | tr -d ',')
+  if [ "$nombreMaquina" ]; then
+    echo -e "\n${yellowColor}󰒋  HTB MACHINES  󰒋 ${endColor}"
+    echo -e "${purpleColor}Por: 4ndyMcFly${endColor}\n"
+    echo -e "\n${purpleColor} ${endColor} La máquina con IP${purpleColor} $ipAddress${endColor} es${blueColor} \"$nombreMaquina\" ${endColor}\n"
+  else
+    echo -e "\n${yellowColor}󰒋  HTB MACHINES  󰒋 ${endColor}"
+    echo -e "${purpleColor}Por: 4ndyMcFly${endColor}\n"
+    echo -e "\n${redColor}✘ ERROR ✘${endColor}  La dirección IP proporcionada ${blueColor}\"$1\"${endColor} no corresponde a ninguna máquina.\n"
+  fi
+}
+
+function searchYT(){
+  nombreMaquina="$1"
+  machineNameCheck=$(cat bundle.js | awk "BEGIN {IGNORECASE = 1} /name: \"$nombreMaquina\"/,/resuelta:/" | grep -vE "id:|sku:|resuelta" | tr -d '"' | tr -d ',' | sed 's/^ *//' |grep youtube | awk 'NF{print $NF}')
+  if [ "$machineNameCheck" ]; then
+    urlYT=$machineNameCheck
+    echo -e "\n${yellowColor}󰒋  HTB MACHINES  󰒋 ${endColor}"
+    echo -e "${purpleColor}Por: 4ndyMcFly${endColor}\n"
+    echo -e "\n${purpleColor} ${endColor} La URL de YouTube de la resolución de la máquina${blueColor} \"$nombreMaquina\"${endColor} es:\n"
+    echo -e "${redColor} ${endColor} ${purpleColor}$urlYT${endColor}\n"
+  else
+    echo -e "\n${yellowColor}󰒋  HTB MACHINES  󰒋 {endColor}"
+    echo -e "${purpleColor}Por: 4ndyMcFly${endColor}\n"
+    echo -e "\n${redColor}✘ ERROR ✘${endColor}  La máquina proporcionada ${blueColor}\"$1\"${endColor} no existe!\n"
+  fi
+}
+
+function searchDiff(){
+  dificultad="$1"
+  difficultyCheck=$(cat bundle.js | grep -i "dificultad: \"$dificultad\"" -B 5 | grep "name: " | awk 'NF{print $NF}' | tr -d '"' | tr -d ',' | sort | column)
+  totalMaquinas=$(cat bundle.js | grep -i "dificultad: \"$dificultad\"" -B 5 | grep "name: " | awk 'NF{print $NF}' | wc -l)
+  if [ "$difficultyCheck" ]; then
+    echo -e "\n${yellowColor}󰒋  HTB MACHINES  󰒋 ${endColor}"
+    echo -e "${purpleColor}Por: 4ndyMcFly${endColor}\n"
+    echo -e "\n${purpleColor} ${endColor} Las máquinas disponibles con la dificultad${purpleColor} \"$dificultad\"${endColor} seleccionada son:\n"
+    echo -e "${blueColor}$difficultyCheck${endColor}\n"
+    echo -e "${blueColor}Total máquinas: $totalMaquinas${endColor}\n"
+  else
+    echo -e "\n${yellowColor}󰒋  HTB MACHINES  󰒋 ${endColor}"
+    echo -e "${purpleColor}Por: 4ndyMcFly${endColor}\n"
+    echo -e "\n${redColor}✘ ERROR ✘${endColor}  La dificultad proporcionada no existe. Las opciones son: ${blueColor}(Fácil, Media, Difícil, Insane)${endColor}\n"
+  fi
+}
+
+function getOS() {
+  os="$1"
+  osCheck=$(cat bundle.js | grep -i "so: \"$os\"" -B 5 | grep "name: " | awk 'NF{print $NF}' | tr -d '"' | tr -d ',' | sort | column)
+  totalMaquinas=$(cat bundle.js | grep -i "so: \"$os\"" -B 5 | grep "name: " | awk 'NF{print $NF}' | wc -l)
+  if [ "$osCheck" ]; then
+    echo -e "\n${yellowColor}󰒋  HTB MACHINES  󰒋 ${endColor}"
+    echo -e "${purpleColor}Por: 4ndyMcFly${endColor}\n"
+    echo -e "\n${purpleColor} ${endColor} Las máquinas disponibles con Sistema Operativo${purpleColor} \"$os\"${endColor} son:\n"
+    echo -e "${blueColor}$osCheck${endColor}\n"
+    echo -e "${blueColor}Total máquinas: $totalMaquinas${endColor}\n"
+  else
+    echo -e "\n${yellowColor}󰒋  HTB MACHINES  󰒋 ${endColor}"
+    echo -e "${purpleColor}Por: 4ndyMcFly${endColor}\n"
+    echo -e "\n${redColor}✘ ERROR ✘${endColor}  El Sistema Operativo no existe en la BBDD. Las opciones son: ${blueColor}(Windows, Linux)${endColor}\n"
+  fi
+}
+
+function getSkill(){
+  skill="$1"
+  getSkill=$(cat bundle.js | grep -i "skills: " -B 6 | grep -i "$skill" -B 6 | grep "name: " | awk 'NF{print $NF}' | tr -d '"' | tr -d ',' | sort | column)
+  totalMaquinas=$(cat bundle.js | grep -i "skills: " -B 6 | grep -i "$skill" -B 6 | grep "name: " | awk 'NF{print $NF}' | wc -l)
+  if [ "$getSkill" ]; then
+    echo -e "\n${yellowColor}󰒋  HTB MACHINES  󰒋 ${endColor}"
+    echo -e "${purpleColor}Por: 4ndyMcFly${endColor}\n"
+    echo -e "\n${purpleColor} ${endColor} Las máquinas con la Skill ${purpleColor}\"$skill\"${endColor} son:\n"
+    echo -e "${blueColor}$getSkill${endColor}\n"
+    echo -e "${blueColor}Total máquinas: $totalMaquinas${endColor}\n"
+  else
+    echo -e "\n${yellowColor}󰒋  HTB MACHINES  󰒋 ${endColor}"
+    echo -e "${purpleColor}Por: 4ndyMcFly${endColor}\n"
+    echo -e "\n${redColor}✘ ERROR ✘${endColor}  Skill no encontrada.\n"
+  fi
+}
+
+function getCertif(){
+  certif="$1"
+  getCertif=$(cat bundle.js  | grep -i "like: " -B 7 | grep -i "$certif" -B 7 | grep -i "name: " | awk 'NF{print $NF}' | tr -d '"' | tr -d ',' | sort | column)
+  totalMaquinas=$(cat bundle.js  | grep -i "like: " -B 7 | grep -i "$certif" -B 7 | grep -i "name: " | awk 'NF{print $NF}'| wc -l)
+  if [ "$getCertif" ]; then
+    echo -e "\n${yellowColor}󰒋  HTB MACHINES  󰒋 ${endColor}"
+    echo -e "${purpleColor}Por: 4ndyMcFly${endColor}\n"
+    echo -e "\n${purpleColor} ${endColor} Las máquinas con certificación ${purpleColor}\"$certif\"${endColor} son:\n"
+    echo -e "${blueColor}$getCertif${endColor}\n"
+    echo -e "${blueColor}Total máquinas: $totalMaquinas${endColor}\n"
+  else
+    echo -e "\n${yellowColor}󰒋  HTB MACHINES  󰒋 ${endColor}"
+    echo -e "${purpleColor}Por: 4ndyMcFly${endColor}\n"
+    echo -e "\n${redColor}✘ ERROR ✘${endColor} La certificación ${purpleColor}\"$certif\"${endColor} no se ha encontrado.\n"
+  fi
+}
+
+function getOSDifficulty(){
+  difficulty="$1"
+  os="$2"
+  getOSDiff=$(cat bundle.js | grep "so: \"$os\"" -C 4 -i | grep "dificultad: \"$difficulty\"" -B 5 -i | grep "name: " | awk 'NF{print $NF}' | tr -d '"' | tr -d ',' | sort | column)
+  totalMaquinas=$(cat bundle.js | grep "so: \"$os\"" -C 4 -i | grep "dificultad: \"$difficulty\"" -B 5 -i | grep "name: " | awk 'NF{print $NF}' | wc -l)
+  if [ "$getOSDiff" ]; then
+    echo -e "\n${yellowColor}󰒋  HTB MACHINES  󰒋 ${endColor}"
+    echo -e "${purpleColor}Por: 4ndyMcFly${endColor}\n"
+    echo -e "\n${purpleColor} ${endColor} Las máquinas con Sistema Operativo${purpleColor} \"$os\"${endColor} y dificultad${purpleColor} \"$difficulty\"${endColor} son:\n"
+    echo -e "${blueColor}$getOSDiff${endColor}\n"
+    echo -e "${blueColor}Total máquinas: $totalMaquinas${endColor}\n"
+  else
+    echo -e "\n${yellowColor}󰒋  HTB MACHINES  󰒋 ${endColor}"
+    echo -e "${purpleColor}Por: 4ndyMcFly${endColor}\n"
+    echo -e "\n${redColor}✘ ERROR ✘${endColor}  El Sistema Operativo y/o la dificultad no existen.\n"
+  fi
+}
+
+function getCertDifficulty(){
+  certif="$1"
+  difficulty="$2"
+  getCertDiff=$(cat bundle.js | grep -e ".*$certif" -B 7 -i | grep "dificultad: \"$difficulty\"" -B 5 -i | grep "name: " | awk 'NF{print $NF}' | tr -d '"' | tr -d ',' | sort | column)
+  totalMaquinas=$(cat bundle.js | grep -e ".*$certif" -B 7 -i | grep "dificultad: \"$difficulty\"" -B 5 -i | grep "name: " | awk 'NF{print $NF}' | wc -l)
+  if [ "$getCertDiff" ]; then
+    echo -e "\n${yellowColor}󰒋  HTB MACHINES  󰒋 ${endColor}"
+    echo -e "${purpleColor}Por: 4ndyMcFly${endColor}\n"
+    echo -e "\n${purpleColor} ${endColor} Las máquinas con Certificación ${purpleColor} \"$certif\"${endColor} y dificultad${purpleColor} \"$difficulty\"${endColor} son:\n"
+    echo -e "${blueColor}$getCertDiff${endColor}\n"
+    echo -e "${blueColor}Total máquinas: $totalMaquinas${endColor}\n"
+  else
+    echo -e "\n${yellowColor}󰒋  HTB MACHINES  󰒋 ${endColor}"
+    echo -e "${purpleColor}Por: 4ndyMcFly${endColor}\n"
+    echo -e "\n${redColor}✘ ERROR ✘${endColor}  El Sistema Operativo y/o la dificultad no existen.\n"
+  fi
+}
+
+# Indicadores
+declare -i parameter_counter=0
+
+# Banderas
+declare -i flag_difficulty=0
+declare -i flag_os=0
+#declare -i flag_skill=0
+declare -i flag_certif=0
+
+while getopts "m:ui:y:d:o:s:c:h" arg; do
+  case $arg in
+    m) machineName="$OPTARG"; ((parameter_counter++));;
+    u) ((parameter_counter+=2));;
+    i) ipAddress="$OPTARG"; ((parameter_counter+=3));;
+    y) machineName="$OPTARG"; ((parameter_counter+=4));;
+    d) difficulty="$OPTARG"; flag_difficulty=1; ((parameter_counter+=5));;
+    o) os="$OPTARG"; flag_os=1; ((parameter_counter+=6));;
+    s) skill="$OPTARG"; ((parameter_counter+=7));;
+    c) certif="$OPTARG"; flag_certif=1; ((parameter_counter+=8));;
+    h) ;;
+    *) ;;
+  esac
+done
+
+if [ $parameter_counter -eq 1 ]; then
+  searchMachine "$machineName"
+elif [ $parameter_counter -eq 2 ]; then
+  updateFiles
+elif [ $parameter_counter -eq 3 ]; then
+  searchIp "$ipAddress"
+elif [ $parameter_counter -eq 4 ]; then
+  searchYT "$machineName"
+elif [ $parameter_counter -eq 5 ]; then
+  searchDiff "$difficulty"
+elif [ $parameter_counter -eq 6 ]; then
+  getOS "$os"
+elif [ $parameter_counter -eq 7 ]; then
+  getSkill "$skill"
+elif [ $parameter_counter -eq 8 ]; then
+  getCertif "$certif"
+elif [ $flag_difficulty -eq 1 ] && [ $flag_os -eq 1 ]; then
+  getOSDifficulty "$difficulty" "$os"
+elif [ $flag_difficulty -eq 1 ] && [ $flag_certif -eq 1 ]; then
+  getCertDifficulty "$certif" "$difficulty"
+else
+  if [ -f bundle.js ]; then
+	helpPanel
+  else
+    helpPanel
+    downloadDB
+    exit 0
+  fi
+fi
