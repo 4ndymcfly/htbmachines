@@ -3,7 +3,7 @@
 --- 
 **htbmachines** is a bash script that allows you to search for HTB machines by filtering by name, operating system, skill, certification, difficulty and their corresponding Youtube link.
 
-Usage:
+# Usage:
 ```bash
 ./htbmachines [OPTION]
 
@@ -26,7 +26,16 @@ Options:
 	-h,	Show this help panel.
 ```
 
-# Screenshots
+# Requirements:
+The script needs **JS Beautifier** to display properly.
+
+More info [here](https://en.kali.tools/?p=1359).
+
+```bash
+sudo apt install jsbeautifier
+```
+
+# Screenshots:
 ![MainMenuhtb](images/mainmenu.png)
 
 ---
